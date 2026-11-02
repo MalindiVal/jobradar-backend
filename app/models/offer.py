@@ -1,10 +1,20 @@
-from datetime import datetime, timezone
-from sqlalchemy import String, Text, Integer, Boolean, DateTime, JSON, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from datetime import datetime
+from sqlalchemy import String, Text, Integer, Boolean, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy.ext.associationproxy import association_proxy, AssociationProxy
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+from app.models.base import utcnow
+from app.models.source import Source
 
-def utcnow():
-    return datetime.now(timezone.utc)
+class OfferSkill(Base):
+    __tablename__ = "offer_skills"
+    __table_args__ = (UniqueConstraint("offer_id", "name", name="uq_offer_skill"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    offer_id: Mapped[int] = mapped_column(ForeignKey("offers.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100), index=True)
+
+    def __init__(self, name: str):
+        self.name = name
 
 class Offer(Base):
     __tablename__ = "offers"
@@ -16,8 +26,7 @@ class Offer(Base):
     contract_type: Mapped[str] = mapped_column(String(100), default="Alternance")
     duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     description: Mapped[str] = mapped_column(Text, default="")
-    skills: Mapped[list] = mapped_column(JSON, default=list)
-    source: Mapped[str] = mapped_column(String(80), index=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), index=True)
     source_url: Mapped[str] = mapped_column(Text)
     deduplication_key: Mapped[str] = mapped_column(String(64), index=True)
     match_score: Mapped[int] = mapped_column(Integer, default=0)
@@ -27,33 +36,11 @@ class Offer(Base):
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
-class SearchProfile(Base):
-    __tablename__ = "search_profiles"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), default="Recherche principale")
-    keywords: Mapped[list] = mapped_column(JSON, default=list)
-    locations: Mapped[list] = mapped_column(JSON, default=list)
-    skills: Mapped[list] = mapped_column(JSON, default=list)
-    duration_months: Mapped[int] = mapped_column(Integer, default=36)
-    contract_type: Mapped[str] = mapped_column(String(100), default="Alternance")
+    source_ref: Mapped[Source] = relationship(lazy="joined")
+    skill_links: Mapped[list[OfferSkill]] = relationship(cascade="all, delete-orphan", lazy="selectin",
+                                                         order_by=OfferSkill.id)
+    skills: AssociationProxy[list[str]] = association_proxy("skill_links", "name")
 
-class CollectionRun(Base):
-    __tablename__ = "collection_runs"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    source: Mapped[str] = mapped_column(String(80))
-    status: Mapped[str] = mapped_column(String(30))
-    found_count: Mapped[int] = mapped_column(Integer, default=0)
-    new_count: Mapped[int] = mapped_column(Integer, default=0)
-    error_message: Mapped[str] = mapped_column(Text, default="")
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-class Notification(Base):
-    __tablename__ = "notifications"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    offer_id: Mapped[int] = mapped_column(index=True)
-    channel: Mapped[str] = mapped_column(String(30), default="email")
-    status: Mapped[str] = mapped_column(String(30), default="pending")
-    recipient: Mapped[str] = mapped_column(String(320), default="")
-    error_message: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    @property
+    def source(self) -> str:
+        return self.source_ref.name if self.source_ref else ""

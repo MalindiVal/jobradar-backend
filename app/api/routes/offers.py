@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Offer, SearchProfile
+from app.models import Offer
 from app.schemas import OfferCreate, OfferRead, OfferPatch
-from app.services.collector import dedup_key
+from app.services.offers import get_or_create_profile, find_existing, build_offer
 from app.services.scoring import score_offer
 
 router = APIRouter(prefix="/offers", tags=["offers"])
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/offers", tags=["offers"])
 @router.get("", response_model=list[OfferRead])
 def list_offers(q: str | None = None, min_score: int = Query(0, ge=0, le=100), db: Session = Depends(get_db)):
     stmt = select(Offer).where(Offer.match_score >= min_score).order_by(desc(Offer.first_seen_at))
-    offers = list(db.scalars(stmt))
+    offers = list(db.scalars(stmt).unique())
     if q:
         needle = q.lower()
         offers = [o for o in offers if needle in f"{o.title} {o.company} {o.location} {o.description}".lower()]
@@ -27,15 +27,11 @@ def get_offer(offer_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=OfferRead, status_code=201)
 def create_offer(payload: OfferCreate, db: Session = Depends(get_db)):
     item = payload.model_dump()
-    key = dedup_key(item)
-    existing = db.scalar(select(Offer).where(Offer.deduplication_key == key))
+    key, existing = find_existing(db, item)
     if existing: return existing
-    profile = db.scalar(select(SearchProfile).limit(1))
-    if profile is None:
-        profile = SearchProfile(); db.add(profile); db.commit(); db.refresh(profile)
-    score, explanation = score_offer(item, profile)
-    offer = Offer(**item, deduplication_key=key, match_score=score, match_explanation=explanation)
-    db.add(offer); db.commit(); db.refresh(offer)
+    score, explanation = score_offer(item, get_or_create_profile(db))
+    offer = build_offer(db, item, key, score, explanation)
+    db.commit(); db.refresh(offer)
     return offer
 
 @router.patch("/{offer_id}", response_model=OfferRead)

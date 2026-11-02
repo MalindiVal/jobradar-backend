@@ -34,6 +34,22 @@ SMTP est facultatif. Si `SMTP_HOST` est vide, les notifications restent enregist
 - `GET /api/collection/runs`
 - `GET /api/settings/profile`
 - `PUT /api/settings/profile`
+- `GET /api/sources`, `PATCH /api/sources/{id}` (activer / désactiver une source)
+- `GET /api/applications`, `POST /api/applications`, `GET|PATCH|DELETE /api/applications/{id}` (suivi des candidatures)
+
+## Base de données
+| Table | Contenu |
+|---|---|
+| `users` | Utilisateurs |
+| `search_profiles` | Critères de recherche |
+| `sources` | Plateformes surveillées |
+| `offers` | Offres détectées |
+| `offer_skills` | Compétences associées |
+| `applications` | Suivi des candidatures |
+| `notifications` | Historique des emails |
+| `collection_logs` | Historique des recherches |
+
+Déduplication : chaque offre reçoit une clé (`deduplication_key`) calculée à partir de son URL canonique (https, hôte sans `www`, sans fragment ni paramètres de suivi type `utm_*` / `trackingId`, paramètres restants triés). Si l'URL est absente ou trop générique, elle est complétée par une empreinte normalisée titre + entreprise + localisation (`app/services/dedup.py`).
 
 ## Migrations
 Les migrations Alembic sont dans `alembic/`. Au démarrage, l'API applique `alembic upgrade head`. En production, exécuter les migrations comme étape de déploiement dédiée.

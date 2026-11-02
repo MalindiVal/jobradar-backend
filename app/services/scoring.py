@@ -1,4 +1,4 @@
-from app.models.offer import SearchProfile
+from app.models import SearchProfile
 
 def score_offer(offer: dict, profile: SearchProfile) -> tuple[int, str]:
     title = (offer.get("title") or "").lower()
