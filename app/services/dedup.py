@@ -47,7 +47,7 @@ def _url_identifies_offer(canonical: str) -> bool:
 def dedup_key(item: dict) -> str:
     """Identifiant stable d'une offre : URL canonique, complétée par l'empreinte
     titre/entreprise/localisation lorsque l'URL est absente ou trop générique."""
-    canonical = canonicalize_url(item.get("source_url"))
+    canonical = canonicalize_url(item.get("application_url"))
     if canonical and _url_identifies_offer(canonical):
         basis = canonical
     else:

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Application, Offer
+from app.models import Application, JobOffer
 from app.schemas import ApplicationCreate, ApplicationPatch, ApplicationRead
 
 router = APIRouter(prefix="/applications", tags=["applications"])
@@ -28,7 +28,7 @@ def get_application(application_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=ApplicationRead, status_code=201)
 def create_application(payload: ApplicationCreate, db: Session = Depends(get_db)):
-    if not db.get(Offer, payload.offer_id): raise HTTPException(404, "Offre introuvable")
+    if not db.get(JobOffer, payload.offer_id): raise HTTPException(404, "Offre introuvable")
     if db.scalar(select(Application).where(Application.offer_id == payload.offer_id)):
         raise HTTPException(409, "Une candidature existe déjà pour cette offre")
     application = Application(offer_id=payload.offer_id, notes=payload.notes, applied_at=payload.applied_at)

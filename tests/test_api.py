@@ -36,3 +36,37 @@ def test_application_lifecycle(client):
     assert client.patch(f"/api/applications/{app_id}", json={"status": "FOO"}).status_code == 422
     assert client.delete(f"/api/applications/{app_id}").status_code == 204
     assert client.get("/api/applications").json() == []
+
+def test_application_url_is_exposed_with_legacy_alias(client):
+    payload = {k: v for k, v in OFFER.items() if k != "source_url"} | {"application_url": "https://example.com/o/1"}
+    offer = client.post("/api/offers", json=payload).json()
+    assert offer["application_url"] == offer["source_url"] == "https://example.com/o/1"
+    assert offer["analysis_status"] == "pending_analysis"
+
+def test_same_source_and_external_id_is_deduplicated(client):
+    base = {"title": "Alternant Data", "source": "la_bonne_alternance", "external_id": "LBA-1"}
+    first = client.post("/api/offers", json={**base, "application_url": "https://example.com/a"}).json()
+    # URL différente mais même identifiant externe : même offre.
+    second = client.post("/api/offers", json={**base, "application_url": "https://example.com/b"}).json()
+    assert first["id"] == second["id"] and first["external_id"] == "LBA-1"
+    # Même identifiant externe sur une autre source : offre distincte.
+    other = client.post("/api/offers", json={**base, "source": "france_travail", "application_url": "https://example.com/c"}).json()
+    assert other["id"] != first["id"]
+
+def test_profile_settings_store_skills_on_profile(client):
+    payload = {"name": "Recherche", "keywords": ["backend"], "locations": ["Dijon"],
+               "skills": ["Python", "python", " FastAPI "], "duration_months": 24, "contract_type": "Alternance"}
+    saved = client.put("/api/settings/profile", json=payload).json()
+    assert saved["skills"] == ["Python", "FastAPI"]
+    assert client.put("/api/settings/profile", json={**payload, "skills": ["Docker"]}).json()["skills"] == ["Docker"]
+    assert client.get("/api/settings/profile").json()["duration_months"] == 24
+
+def test_internal_routes_require_api_key(client):
+    assert client.get("/internal/ping").status_code == 401
+    assert client.get("/internal/ping", headers={"X-API-Key": "wrong"}).status_code == 401
+    assert client.get("/internal/ping", headers={"X-API-Key": "test-internal-key"}).json() == {"status": "ok"}
+
+def test_internal_routes_refused_without_configured_key(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "jobradar_internal_key", "")
+    assert client.get("/internal/ping", headers={"X-API-Key": ""}).status_code == 503

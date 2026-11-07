@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     secret_key: str = "dev-only-change-me"
     database_url: str = "sqlite:///./jobradar.db"
     cors_origins: str = "http://localhost:3000"
+    # Clé partagée avec n8n pour les routes /internal (en-tête X-API-Key). Vide = routes refusées.
+    jobradar_internal_key: str = ""
     scheduler_enabled: bool = True
     collection_interval_minutes: int = 60
     collection_sources: str = "demo"

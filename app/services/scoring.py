@@ -1,6 +1,6 @@
-from app.models import SearchProfile
 
-def score_offer(offer: dict, profile: SearchProfile) -> tuple[int, str]:
+
+def score_offer(offer: dict, profile) -> tuple[int, str]:
     title = (offer.get("title") or "").lower()
     location = (offer.get("location") or "").lower()
     text = " ".join([title, offer.get("description") or "", " ".join(offer.get("skills") or [])]).lower()

@@ -14,6 +14,7 @@ class DemoConnector(BaseJobConnector):
                 "description": "Développement d'applications web avec React, TypeScript, Python et SQL.",
                 "skills": ["React", "TypeScript", "Python", "SQL"],
                 "source": "demo",
-                "source_url": "https://example.com/jobs/demo-fullstack"
+                "external_id": "DEMO-1",
+                "application_url": "https://example.com/jobs/demo-fullstack"
             }
         ]

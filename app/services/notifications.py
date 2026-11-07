@@ -13,7 +13,7 @@ def send_offer_email(offer, recipient: str | None = None) -> tuple[bool, str]:
     msg.set_content(
         f"{offer.title}\n{offer.company} – {offer.location}\n"
         f"Score : {offer.match_score}/100\n\n{offer.match_explanation}\n\n"
-        f"Voir l'offre : {offer.source_url}"
+        f"Voir l'offre : {offer.application_url}"
     )
     try:
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:

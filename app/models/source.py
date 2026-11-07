@@ -4,8 +4,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 from app.models.base import utcnow
 
-class Source(Base):
-    __tablename__ = "sources"
+class JobSource(Base):
+    __tablename__ = "job_sources"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     label: Mapped[str] = mapped_column(String(120), default="")

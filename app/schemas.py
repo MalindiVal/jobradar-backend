@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 ApplicationStatus = Literal["TO_APPLY", "APPLIED", "INTERVIEW", "OFFER", "ACCEPTED", "REJECTED", "WITHDRAWN"]
 
@@ -13,7 +13,10 @@ class OfferCreate(BaseModel):
     description: str = ""
     skills: list[str] = []
     source: str = "manual"
-    source_url: str
+    external_id: str | None = Field(default=None, max_length=200)
+    # « source_url » reste accepté pour compatibilité avec les clients existants.
+    application_url: str = Field(validation_alias=AliasChoices("application_url", "source_url"))
+    published_at: datetime | None = None
 class OfferPatch(BaseModel):
     status: str | None = None
     is_favorite: bool | None = None
@@ -28,9 +31,13 @@ class OfferRead(BaseModel):
     description: str
     skills: list[str]
     source: str
+    external_id: str | None
+    application_url: str
     source_url: str
+    published_at: datetime | None
     match_score: int
     match_explanation: str
+    analysis_status: str
     status: str
     is_favorite: bool
     first_seen_at: datetime

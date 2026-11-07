@@ -3,7 +3,7 @@ from app.database import SessionLocal
 from app.models import CollectionLog, Notification
 from app.core.config import settings
 from app.services.collection.registry import get_connectors
-from app.services.offers import get_or_create_profile, get_or_create_source, find_existing, build_offer
+from app.services.offers import get_matching_criteria, get_or_create_source, find_existing, build_offer
 from app.services.scoring import score_offer
 from app.services.ai import explain_with_ai
 from app.services.notifications import send_offer_email
@@ -12,7 +12,7 @@ async def run_collection():
     db = SessionLocal()
     summary = {"sources": [], "found": 0, "new": 0}
     try:
-        profile = get_or_create_profile(db)
+        profile = get_matching_criteria(db)
         for connector in get_connectors(settings.source_list):
             source = get_or_create_source(db, connector.name)
             db.commit()
