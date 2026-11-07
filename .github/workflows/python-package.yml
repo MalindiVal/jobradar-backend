@@ -1,40 +1,94 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
-name: Python package
+# Intégration continue du backend JobRadar.
+# - tests : lint bloquant (erreurs de syntaxe / noms indéfinis) + pytest (SQLite)
+# - migrations : Alembic sur un vrai PostgreSQL 16, schéma comparé aux modèles, descente/remontée
+# - docker : validation du docker-compose.yml et construction de l'image de l'API
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"  # identique au Dockerfile
 
 jobs:
-  build:
-
+  tests:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11"]
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        pytest
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt flake8
+      - name: Lint (flake8)
+        run: |
+          # bloquant : erreurs de syntaxe et noms indéfinis
+          flake8 app alembic tests --count --select=E9,F63,F7,F82 --show-source --statistics
+          # informatif
+          flake8 app alembic tests --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Tests (pytest)
+        run: pytest -q
+
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: jobradar
+          POSTGRES_USER: jobradar
+          POSTGRES_PASSWORD: jobradar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobradar -d jobradar"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://jobradar:jobradar@localhost:5432/jobradar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+      - name: Appliquer les migrations
+        run: alembic upgrade head
+      - name: Vérifier que le schéma correspond aux modèles
+        run: alembic check
+      - name: Descendre puis remonter la dernière migration
+        run: |
+          alembic downgrade -1
+          alembic upgrade head
+          alembic check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Préparer un .env de CI
+        # valeurs factices : seule la validité de la configuration est testée
+        run: |
+          cp .env.example .env
+          sed -i "s/^JOBRADAR_INTERNAL_KEY=.*/JOBRADAR_INTERNAL_KEY=ci-internal-key/" .env
+          sed -i "s/^N8N_ENCRYPTION_KEY=.*/N8N_ENCRYPTION_KEY=ci-encryption-key/" .env
+      - name: Valider docker-compose.yml
+        run: docker compose --env-file .env config --quiet
+      - name: Construire l'image de l'API
+        run: docker build -t jobradar-api:ci .
