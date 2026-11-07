@@ -6,9 +6,11 @@ Référence : cahier des charges technique JobRadar MVP v0.1.
 - Docker Compose : PostgreSQL 16, API FastAPI, n8n (base PostgreSQL dédiée).
 - Modèle de données du §3 : users, profiles, skills, profile_skills, job_offers, job_sources,
   job_analyses, applications, search_preferences, notifications (+ offer_skills, collection_logs).
-- Migration Alembic `0003_mvp_data_model` avec reprise des données existantes (testée sur SQLite,
-  montée et descente ; pas encore exécutée sur PostgreSQL).
+- Migration Alembic `0003_mvp_data_model` avec reprise des données existantes (testée sur SQLite et
+  PostgreSQL : montée avec données, descente, remontée).
 - Clé interne `JOBRADAR_INTERNAL_KEY` et route protégée `GET /internal/ping`.
+- Script `scripts/check-local.ps1` et note `docs/mvp-coherence.md`.
+- Non vérifié : `docker compose up` (Docker absent du poste de développement au moment du jalon).
 
 ## Prochaines étapes
 - Jalon 2 : `POST /internal/offers/upsert`, `POST /internal/offers/{id}/analyze`,

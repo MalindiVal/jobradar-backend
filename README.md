@@ -15,6 +15,10 @@ L'interface web est dans le projet séparé `jobradar-frontend`.
 3. Lancer : `docker compose up --build`
 4. API : http://localhost:8000/docs — santé : http://localhost:8000/health
 5. n8n : http://localhost:5678 (créer le compte propriétaire au premier lancement)
+6. Vérifier l'ensemble : `powershell -ExecutionPolicy Bypass -File scripts/check-local.ps1`
+   (.env, conteneurs, `/health`, `/internal/ping`, `/healthz` de n8n, base n8n, révision Alembic)
+
+État des sources, de Claude et des critères du MVP : voir [docs/mvp-coherence.md](docs/mvp-coherence.md).
 
 | Service | Port | Rôle |
 |---|---|---|
